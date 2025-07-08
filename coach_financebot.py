@@ -5,14 +5,14 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler,
     MessageHandler, filters
 )
-from telegram import ChatAction
+from telegram.constants import ChatAction
 
-# 🔐 Obtén tokens como variables de entorno
-TELEGRAM_TOKEN = os.environ['7706288976:AAHRlufto7XhQp9hoWIKaPu8rKCngE2N1XY']
-OPENAI_API_KEY = os.environ['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']
+# 🔐 Leer tokens desde variables de entorno
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
 
-# 🧠 Mensaje del sistema para IA
+# 🧠 Prompt del sistema
 SYSTEM_PROMPT = """
 Eres un mentor financiero experto y motivador, especializado en ayudar a
 lograr independencia económica y hacerse millonaria desde cero.
@@ -20,34 +20,42 @@ lograr independencia económica y hacerse millonaria desde cero.
 
 # Comando /start
 async def start(update, context):
-    usuario = update.effective_user.first_name
+    user = update.effective_user.first_name
     await update.message.reply_text(
-        f"Hola {usuario} 💸, soy tu coach financiero personal. "
+        f"Hola {user} 💸, soy tu coach financiero personal. "
         "Escríbeme cualquier duda y trabajaremos juntas para que te hagas millonaria 💪"
     )
 
-# Manejo de mensajes
+# Conversación principal
 async def conversacion(update, context):
-    prompt = update.message.text
-    await update.message.chat.send_action(ChatAction.TYPING)
-    abierta = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    respuesta = abierta.choices[0].message.content
-    await update.message.reply_text(respuesta)
+    user_input = update.message.text
+    await update.message.chat.send_action(action=ChatAction.TYPING)
 
-# Iniciar bot
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",  # puedes cambiar a "gpt-3.5-turbo" si no tienes acceso a GPT-4
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_input}
+            ]
+        )
+        reply = response.choices[0].message.content
+    except Exception as e:
+        reply = f"⚠️ Ocurrió un error con OpenAI: {e}"
+
+    await update.message.reply_text(reply)
+
+# Ejecutar el bot
 async def main():
     logging.basicConfig(level=logging.INFO)
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, conversacion))
+
     print("🤖 Bot de coaching financiero corriendo...")
     await app.run_polling()
 
-import asyncio
-asyncio.run(main())
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
