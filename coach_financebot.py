@@ -65,4 +65,13 @@ async def main():
 
 # Inicia solo si este archivo es el principal
 if __name__ == "__main__":
-    asyncio.run(main())
+    import asyncio
+
+    try:
+        asyncio.run(main())
+    except RuntimeError as e:
+        # Si Render ya tiene un loop activo, usa este fallback
+        loop = asyncio.get_event_loop()
+        loop.create_task(main())
+        loop.run_forever()
+
