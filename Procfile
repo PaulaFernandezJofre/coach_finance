@@ -1,1 +1,1 @@
-web: python bot.py
+web: python coach_financebot.py
