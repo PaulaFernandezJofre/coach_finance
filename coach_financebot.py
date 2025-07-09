@@ -3,13 +3,18 @@ import logging
 import openai
 from telegram.ext import (
     ApplicationBuilder, CommandHandler,
-    MessageHandler, filters
+    MessageHandler, ContextTypes, filters
 )
 from telegram.constants import ChatAction
 
 # 🔐 Leer tokens desde variables de entorno
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+# 🔍 Validar que las claves estén configuradas
+if not TELEGRAM_TOKEN or not OPENAI_API_KEY:
+    raise EnvironmentError("❌ TELEGRAM_TOKEN o OPENAI_API_KEY no están definidos en variables de entorno.")
+
 openai.api_key = OPENAI_API_KEY
 
 # 🧠 Prompt del sistema
@@ -19,35 +24,36 @@ lograr independencia económica y hacerse millonaria desde cero.
 """
 
 # Comando /start
-async def start(update, context):
-    user = update.effective_user.first_name
+async def start(update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user.first_name or "amiga"
     await update.message.reply_text(
         f"Hola {user} 💸, soy tu coach financiero personal. "
         "Escríbeme cualquier duda y trabajaremos juntas para que te hagas millonaria 💪"
     )
 
 # Conversación principal
-async def conversacion(update, context):
+async def conversacion(update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text
     await update.message.chat.send_action(action=ChatAction.TYPING)
 
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # puedes cambiar a "gpt-3.5-turbo" si no tienes acceso a GPT-4
+            model="gpt-4",  # Cambia a "gpt-3.5-turbo" si usas el plan gratuito
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_input}
             ]
         )
-        reply = response.choices[0].message.content
+        reply = response.choices[0].message.content.strip()
     except Exception as e:
-        reply = f"⚠️ Ocurrió un error con OpenAI: {e}"
+        reply = f"⚠️ Ocurrió un error con OpenAI:\n{e}"
 
     await update.message.reply_text(reply)
 
 # Ejecutar el bot
 async def main():
     logging.basicConfig(level=logging.INFO)
+
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
